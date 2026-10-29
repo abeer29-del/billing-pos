@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customers - Billing POS</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        /* =====================================================
+           DESIGN TOKENS (shared with dashboard.html / pos.html / products.html)
+        ===================================================== */
+        :root {
+            --bg: #F5F6F3;
+            --surface: #FFFFFF;
+            --surface-sunken: #EFF1EC;
+            --border: #E1E3DE;
+            --text: #1A1D1B;
+            --text-muted: #6B7268;
+            --sidebar-bg: #14181A;
+            --sidebar-text: #C7CCC7;
+            --sidebar-text-active: #FFFFFF;
+
+            --accent: #1F6F54;
+            --accent-hover: #185B44;
+            --accent-soft: #E4EFE9;
+            --amber: #C97A2B;
+            --amber-soft: #F7ECDE;
+            --danger: #B3392C;
+            --danger-hover: #942F26;
+            --danger-soft: #F6E4E1;
+
+            --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+            --radius: 6px;
+            --shadow: 0 1px 2px rgba(20, 24, 20, 0.06);
+        }
+
+        [data-theme="dark"] {
+            --bg: #12161A;
+            --surface: #1B2127;
+            --surface-sunken: #161B20;
+            --border: #2A3138;
+            --text: #E8EAE7;
+            --text-muted: #8B948C;
+            --sidebar-bg: #0D1013;
+            --sidebar-text: #8B948C;
+            --sidebar-text-active: #FFFFFF;
+
+            --accent: #2E8F6E;
+            --accent-hover: #37A67F;
+            --accent-soft: #16261F;
+            --amber: #D8923F;
+            --amber-soft: #2A2115;
+            --danger: #C4564A;
+            --danger-hover: #D8695C;
+            --danger-soft: #2A1917;
+            --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: var(--font-ui);
+            background: var(--bg);
+            color: var(--text);
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        a { text-decoration: none; color: inherit; }
+        .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+        /* ---- Shell / sidebar / topbar (shared) ---- */
+        .shell { display: flex; min-height: 100vh; }
+
+        .sidebar {
+            width: 232px;
+            flex-shrink: 0;
+            background: var(--sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            padding: 22px 16px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 8px 22px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 18px;
+        }
+
+        .brand-mark {
+            width: 30px; height: 30px; border-radius: 7px;
+            background: var(--accent);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; flex-shrink: 0;
+        }
+
+        .brand-name { color: #fff; font-weight: 600; font-size: 14.5px; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 2px; }
+
+        .nav-link {
+            display: flex; align-items: center; gap: 11px;
+            padding: 9px 10px; border-radius: var(--radius);
+            color: var(--sidebar-text); font-size: 13.5px; font-weight: 500;
+        }
+
+        .nav-link .ic { font-size: 15px; width: 18px; text-align: center; }
+        .nav-link:hover { background: rgba(255,255,255,0.05); color: var(--sidebar-text-active); }
+        .nav-link.active { background: var(--accent); color: #fff; }
+
+        .sidebar-footer {
+            margin-top: auto; padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11.5px; color: #565D57;
+        }
+
+        .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+        .topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 30px; border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .topbar h1 { font-size: 19px; font-weight: 700; margin: 0 0 2px 0; }
+        .topbar .subtitle { font-size: 13px; color: var(--text-muted); margin: 0; }
+        .topbar-actions { display: flex; align-items: center; gap: 10px; }
+
+        .theme-toggle {
+            width: 34px; height: 34px; border-radius: var(--radius);
+            border: 1px solid var(--border); background: var(--surface-sunken);
+            color: var(--text); display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 15px;
+        }
+
+        .user-chip {
+            display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500;
+            padding: 7px 12px; border-radius: var(--radius);
+            background: var(--surface-sunken); border: 1px solid var(--border);
+        }
+
+        .btn-logout {
+            font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: var(--radius);
+            background: transparent; border: 1px solid var(--danger); color: var(--danger); cursor: pointer;
+        }
+        .btn-logout:hover { background: var(--danger-soft); }
+
+        .btn-ghost {
+            font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: var(--radius);
+            background: var(--surface-sunken); border: 1px solid var(--border); color: var(--text);
+        }
+        .btn-ghost:hover { border-color: var(--accent); }
+
+        .content { padding: 26px 30px 50px 30px; }
+
+        /* =====================================================
+           PAGE CONTENT
+        ===================================================== */
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+
+        .panel-head {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-head h2 { font-size: 15px; font-weight: 700; margin: 0; }
+        .panel-head p { font-size: 12.5px; color: var(--text-muted); margin: 3px 0 0 0; }
+
+        .panel-body { padding: 20px; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .field {
+            width: 100%;
+            padding: 11px 14px;
+            font-size: 14px;
+            font-family: var(--font-ui);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface-sunken);
+            color: var(--text);
+        }
+
+        .field:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+        .field::placeholder { color: var(--text-muted); }
+
+        .btn-primary {
+            margin-top: 16px;
+            padding: 11px 22px;
+            font-size: 13.5px;
+            font-weight: 600;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+        }
+
+        .btn-primary:hover { background: var(--accent-hover); }
+
+        .search-field {
+            max-width: 320px;
+            margin-bottom: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }
+
+        thead th {
+            text-align: left;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+            padding: 0 10px 12px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody td {
+            padding: 13px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: var(--surface-sunken); }
+
+        .tag-btn {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 5px;
+            margin-right: 6px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .edit { background: var(--amber-soft); color: var(--amber); }
+        .edit:hover { background: var(--amber); color: #fff; }
+
+        .delete { background: var(--danger-soft); color: var(--danger); }
+        .delete:hover { background: var(--danger); color: #fff; }
+
+        .inline-form { display: inline; margin: 0; }
+        .tag-btn { font-family: var(--font-ui); }
+
+        .no-rows {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 30px 10px;
+        }
+
+        @media (max-width: 720px) {
+            .sidebar { display: none; }
+            .content { padding: 20px; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="shell">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">🛒</div>
+            <div class="brand-name">Billing POS</div>
+        </div>
+
+        <nav class="nav-group">
+            <a href="/dashboard" class="nav-link"><span class="ic">🏠</span> Dashboard</a>
+            <a href="/pos" class="nav-link"><span class="ic">🛒</span> Point of Sale</a>
+            <a href="/invoices" class="nav-link"><span class="ic">🧾</span> Invoices</a>
+            <a href="/customers" class="nav-link active"><span class="ic">👥</span> Customers</a>
+            <a href="/reports" class="nav-link"><span class="ic">📊</span> Reports</a>
+            <a href="/" class="nav-link"><span class="ic">📦</span> Products</a>
+        </nav>
+
+        <div class="sidebar-footer">Billing POS · Store Console</div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+
+        <div class="topbar">
+            <div>
+                <h1>Customers</h1>
+                <p class="subtitle">Manage your customer directory</p>
+            </div>
+
+            <div class="topbar-actions">
+                <button type="button" class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+                <a href="/dashboard" class="btn-ghost">← Dashboard</a>
+                <a href="/logout" class="btn-logout" onclick="return confirm('Are you sure you want to logout?')">Logout</a>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <!-- ADD CUSTOMER -->
+            <div class="panel">
+                <div class="panel-head">
+                    <h2>Add New Customer</h2>
+                    <p>New customers become selectable at checkout right away</p>
+                </div>
+
+                <div class="panel-body">
+                    <form action="/add_customer" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="form-grid">
+
+                            <input
+                                type="text"
+                                name="name"
+                                class="field"
+                                placeholder="Customer Name"
+                                required
+                            >
+
+                            <input
+                                type="text"
+                                name="phone"
+                                class="field"
+                                placeholder="Phone Number"
+                            >
+
+                            <input
+                                type="email"
+                                name="email"
+                                class="field"
+                                placeholder="Email Address"
+                            >
+
+                            <input
+                                type="text"
+                                name="address"
+                                class="field"
+                                placeholder="Address"
+                            >
+
+                        </div>
+
+                        <button type="submit" class="btn-primary">+ Add Customer</button>
+
+                    </form>
+                </div>
+            </div>
+
+            <!-- CUSTOMER LIST -->
+            <div class="panel">
+                <div class="panel-head">
+                    <h2>Customer List</h2>
+                </div>
+
+                <div class="panel-body">
+
+                    <input
+                        type="text"
+                        id="searchCustomer"
+                        class="field search-field"
+                        placeholder="🔍 Search customer..."
+                        onkeyup="searchCustomers()"
+                    >
+
+                    <div style="overflow-x:auto;">
+                        <table id="customerTable">
+
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Address</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                {% for customer in customers %}
+
+                                <tr>
+
+                                    <td class="num">{{ customer.id }}</td>
+
+                                    <td><strong>{{ customer.name }}</strong></td>
+
+                                    <td class="num">{{ customer.phone or '-' }}</td>
+
+                                    <td>{{ customer.email or '-' }}</td>
+
+                                    <td>{{ customer.address or '-' }}</td>
+
+                                    <td>
+                                        <a href="/edit_customer/{{ customer.id }}" class="tag-btn edit">Edit</a>
+                                        <form
+                                            action="/delete_customer/{{ customer.id }}"
+                                            method="POST"
+                                            class="inline-form"
+                                            onsubmit="return confirm('Are you sure you want to delete this customer?');"
+                                        >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="tag-btn delete">Delete</button>
+                                        </form>
+                                    </td>
+
+                                </tr>
+
+                                {% else %}
+
+                                <tr>
+                                    <td colspan="6" class="no-rows">No customers found.</td>
+                                </tr>
+
+                                {% endfor %}
+
+                            </tbody>
+
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- =====================================================
+     THEME TOGGLE
+===================================================== -->
+<script>
+    const root = document.documentElement;
+    const themeToggle = document.getElementById('themeToggle');
+
+    function applyTheme(theme) {
+        root.setAttribute('data-theme', theme);
+        themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+
+    const savedTheme = localStorage.getItem('pos-theme') ||
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(savedTheme);
+
+    themeToggle.addEventListener('click', function () {
+        const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('pos-theme', next);
+        applyTheme(next);
+    });
+</script>
+
+<!-- =====================================================
+     CUSTOMER SEARCH (unchanged logic from original file)
+===================================================== -->
+<script>
+
+function searchCustomers() {
+
+    let input =
+        document.getElementById("searchCustomer")
+        .value
+        .toLowerCase();
+
+    let rows =
+        document.querySelectorAll("#customerTable tbody tr");
+
+    rows.forEach(function(row) {
+
+        let text = row.innerText.toLowerCase();
+
+        if (text.includes(input)) {
+            row.style.display = "";
+        } else {
+            row.style.display = "none";
+        }
+
+    });
+
+}
+
+</script>
+
+</body>
+
+</html>
