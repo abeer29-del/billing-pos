@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS - Billing System</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        /* =====================================================
+           DESIGN TOKENS (shared with dashboard.html)
+        ===================================================== */
+        :root {
+            --bg: #F5F6F3;
+            --surface: #FFFFFF;
+            --surface-sunken: #EFF1EC;
+            --border: #E1E3DE;
+            --text: #1A1D1B;
+            --text-muted: #6B7268;
+            --sidebar-bg: #14181A;
+            --sidebar-text: #C7CCC7;
+            --sidebar-text-active: #FFFFFF;
+
+            --accent: #1F6F54;
+            --accent-hover: #185B44;
+            --accent-soft: #E4EFE9;
+            --amber: #C97A2B;
+            --amber-soft: #F7ECDE;
+            --danger: #B3392C;
+            --danger-soft: #F6E4E1;
+
+            --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+            --radius: 6px;
+            --shadow: 0 1px 2px rgba(20, 24, 20, 0.06);
+        }
+
+        [data-theme="dark"] {
+            --bg: #12161A;
+            --surface: #1B2127;
+            --surface-sunken: #161B20;
+            --border: #2A3138;
+            --text: #E8EAE7;
+            --text-muted: #8B948C;
+            --sidebar-bg: #0D1013;
+            --sidebar-text: #8B948C;
+            --sidebar-text-active: #FFFFFF;
+
+            --accent: #2E8F6E;
+            --accent-hover: #37A67F;
+            --accent-soft: #16261F;
+            --amber: #D8923F;
+            --amber-soft: #2A2115;
+            --danger: #C4564A;
+            --danger-soft: #2A1917;
+            --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: var(--font-ui);
+            background: var(--bg);
+            color: var(--text);
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        a { text-decoration: none; color: inherit; }
+        .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+        /* ---- Shell / sidebar / topbar (shared) ---- */
+        .shell { display: flex; min-height: 100vh; }
+
+        .sidebar {
+            width: 232px;
+            flex-shrink: 0;
+            background: var(--sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            padding: 22px 16px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 8px 22px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 18px;
+        }
+
+        .brand-mark {
+            width: 30px; height: 30px; border-radius: 7px;
+            background: var(--accent);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; flex-shrink: 0;
+        }
+
+        .brand-name { color: #fff; font-weight: 600; font-size: 14.5px; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 2px; }
+
+        .nav-link {
+            display: flex; align-items: center; gap: 11px;
+            padding: 9px 10px; border-radius: var(--radius);
+            color: var(--sidebar-text); font-size: 13.5px; font-weight: 500;
+        }
+
+        .nav-link .ic { font-size: 15px; width: 18px; text-align: center; }
+        .nav-link:hover { background: rgba(255,255,255,0.05); color: var(--sidebar-text-active); }
+        .nav-link.active { background: var(--accent); color: #fff; }
+
+        .sidebar-footer {
+            margin-top: auto; padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11.5px; color: #565D57;
+        }
+
+        .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+        .topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 30px; border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .topbar h1 { font-size: 19px; font-weight: 700; margin: 0 0 2px 0; }
+        .topbar .subtitle { font-size: 13px; color: var(--text-muted); margin: 0; }
+        .topbar-actions { display: flex; align-items: center; gap: 10px; }
+
+        .theme-toggle {
+            width: 34px; height: 34px; border-radius: var(--radius);
+            border: 1px solid var(--border); background: var(--surface-sunken);
+            color: var(--text); display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 15px;
+        }
+
+        .user-chip {
+            display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500;
+            padding: 7px 12px; border-radius: var(--radius);
+            background: var(--surface-sunken); border: 1px solid var(--border);
+        }
+
+        .btn-logout {
+            font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: var(--radius);
+            background: transparent; border: 1px solid var(--danger); color: var(--danger); cursor: pointer;
+        }
+        .btn-logout:hover { background: var(--danger-soft); }
+
+        .content { padding: 26px 30px 50px 30px; }
+
+        .btn-ghost {
+            font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: var(--radius);
+            background: var(--surface-sunken); border: 1px solid var(--border); color: var(--text);
+        }
+        .btn-ghost:hover { border-color: var(--accent); }
+
+        /* =====================================================
+           PAGE LAYOUT
+        ===================================================== */
+        .pos-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .panel-body { padding: 18px; }
+
+        /* ---- Search row ---- */
+        .search-row {
+            display: grid;
+            grid-template-columns: 1fr 220px auto;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .scan-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+            min-height: 18px;
+        }
+
+        .scan-hint.ok { color: var(--accent); font-weight: 600; }
+        .scan-hint.error { color: var(--danger); font-weight: 600; }
+
+        .field {
+            width: 100%;
+            padding: 11px 14px;
+            font-size: 14px;
+            font-family: var(--font-ui);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface-sunken);
+            color: var(--text);
+        }
+
+        .field:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+        /* ---- Product grid ---- */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 14px;
+        }
+
+        .product-card {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 15px;
+            background: var(--surface);
+            cursor: pointer;
+            transition: border-color 0.15s ease, transform 0.1s ease;
+        }
+
+        .product-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .product-card .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .product-card h3 {
+            font-size: 14.5px;
+            font-weight: 600;
+            margin: 0;
+            line-height: 1.3;
+        }
+
+        .stock-badge {
+            font-size: 10.5px;
+            font-weight: 600;
+            padding: 3px 7px;
+            border-radius: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .stock-badge.in { background: var(--accent-soft); color: var(--accent); }
+        .stock-badge.out { background: var(--danger-soft); color: var(--danger); }
+
+        .product-meta { font-size: 12px; color: var(--text-muted); margin: 2px 0; }
+
+        .product-price {
+            font-family: var(--font-mono);
+            font-size: 19px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .add-to-cart-btn {
+            width: 100%;
+            margin-top: 12px;
+            padding: 9px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: var(--radius);
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .add-to-cart-btn:hover { background: var(--accent-hover); }
+        .add-to-cart-btn:disabled {
+            background: var(--surface-sunken);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            border: 1px solid var(--border);
+        }
+
+        .empty-note {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 30px;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius);
+            color: var(--text-muted);
+        }
+
+        /* ---- Cart panel ---- */
+        .cart-box { position: sticky; top: 20px; }
+
+        .cart-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px;
+            background: var(--accent);
+            color: #fff;
+            border-radius: var(--radius) var(--radius) 0 0;
+        }
+
+        .cart-head h2 { font-size: 15px; font-weight: 700; margin: 0; }
+
+        .btn-clear {
+            font-size: 12px; font-weight: 600;
+            padding: 5px 11px; border-radius: 5px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff; cursor: pointer;
+        }
+        .btn-clear:hover { background: rgba(255,255,255,0.25); }
+
+        .field-label {
+            font-size: 12.5px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .empty-cart {
+            padding: 40px 10px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .empty-cart .ic { font-size: 38px; margin-bottom: 6px; }
+
+        .cart-item {
+            border-bottom: 1px solid var(--border);
+            padding: 12px 0;
+        }
+
+        .cart-item:last-child { border-bottom: none; }
+
+        .quantity-btn {
+            width: 26px; height: 26px; padding: 0;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            background: var(--surface-sunken);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+        }
+        .quantity-btn:hover { border-color: var(--accent); }
+
+        .remove-item {
+            border: none; background: none; cursor: pointer;
+            color: var(--danger); font-size: 17px; line-height: 1; padding: 2px 4px;
+        }
+
+        /* ---- Discount & tax ---- */
+        .adjust-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .adjust-grid .span-2 { grid-column: 1 / -1; }
+
+        .field-sm { padding: 9px 11px; font-size: 13px; }
+
+        .total-box {
+            background: var(--surface-sunken);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            margin-top: 14px;
+        }
+
+        .total-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 13.5px;
+        }
+
+        .total-row + .total-row { margin-top: 8px; }
+
+        .total-row.discount-row strong { color: var(--danger); }
+
+        .total-row.grand-row {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+        }
+
+        .total-row .grand { font-size: 15px; font-weight: 600; }
+        .total-row .grand-val { font-family: var(--font-mono); font-size: 21px; font-weight: 700; color: var(--accent); }
+
+        .pay-btn {
+            width: 100%;
+            margin-top: 16px;
+            padding: 14px;
+            font-size: 15.5px;
+            font-weight: 700;
+            border-radius: var(--radius);
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+        }
+        .pay-btn:hover { background: var(--accent-hover); }
+        .pay-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .change-box {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: var(--radius);
+            background: var(--accent-soft);
+            border: 1px solid var(--accent);
+        }
+
+        .alert-inline {
+            padding: 10px 13px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .alert-inline.warning { background: var(--amber-soft); color: var(--amber); }
+        .alert-inline.danger { background: var(--danger-soft); color: var(--danger); }
+
+        /* ---- Camera scanning ---- */
+        .btn-scan {
+            padding: 11px 16px;
+            font-size: 13.5px;
+            font-weight: 600;
+            font-family: var(--font-ui);
+            border-radius: var(--radius);
+            border: 1px solid var(--accent);
+            background: var(--accent-soft);
+            color: var(--accent);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .btn-scan:hover { background: var(--accent); color: #fff; }
+
+        .camera-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(10, 14, 12, 0.72);
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .camera-modal.open { display: flex; }
+
+        .camera-card {
+            width: 100%;
+            max-width: 480px;
+            max-height: 100%;
+            overflow: auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+        }
+
+        .camera-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+            font-size: 15px;
+        }
+
+        .btn-camera-done {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: var(--font-ui);
+            border: none;
+            border-radius: var(--radius);
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+        }
+        .btn-camera-done:hover { background: var(--accent-hover); }
+
+        .camera-reader { width: 100%; min-height: 240px; background: #000; }
+
+        .camera-status { padding: 12px 18px 4px; font-size: 14px; font-weight: 600; min-height: 36px; }
+        .camera-status.ok { color: var(--accent); }
+        .camera-status.error { color: var(--danger); }
+
+        .camera-summary { padding: 0 18px; font-size: 12.5px; color: var(--text-muted); font-family: var(--font-mono); }
+        .camera-foot { padding: 8px 18px 16px; font-size: 12px; color: var(--text-muted); }
+
+        @media (max-width: 980px) {
+            .pos-grid { grid-template-columns: 1fr; }
+            .cart-box { position: static; }
+            .search-row { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 720px) {
+            .sidebar { display: none; }
+            .content { padding: 20px; }
+        }
+    </style>
+</head>
+
+
+<body>
+
+<div class="shell">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">🛒</div>
+            <div class="brand-name">Billing POS</div>
+        </div>
+
+        <nav class="nav-group">
+            <a href="/dashboard" class="nav-link"><span class="ic">🏠</span> Dashboard</a>
+            <a href="/pos" class="nav-link active"><span class="ic">🛒</span> Point of Sale</a>
+            <a href="/invoices" class="nav-link"><span class="ic">🧾</span> Invoices</a>
+            <a href="/customers" class="nav-link"><span class="ic">👥</span> Customers</a>
+            <a href="/reports" class="nav-link"><span class="ic">📊</span> Reports</a>
+            <a href="/" class="nav-link"><span class="ic">📦</span> Products</a>
+        </nav>
+
+        <div class="sidebar-footer">Billing POS · Store Console</div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+
+        <div class="topbar">
+            <div>
+                <h1>Point of Sale</h1>
+                <p class="subtitle">Create a new sale and process payment</p>
+            </div>
+
+            <div class="topbar-actions">
+                <button type="button" class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+                <a href="/change_password" class="user-chip" title="Change password">👤 {{ session.get("username", "Admin") }}</a>
+                <a href="/dashboard" class="btn-ghost">← Dashboard</a>
+                <a href="/logout" class="btn-logout" onclick="return confirm('Are you sure you want to logout?')">Logout</a>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <div class="pos-grid">
+
+                <!-- =========================================
+                     PRODUCTS SECTION
+                ========================================== -->
+                <div class="panel">
+                    <div class="panel-body">
+
+                        <div class="search-row">
+                            <input
+                                type="text"
+                                id="searchInput"
+                                class="field"
+                                placeholder="🔍 Scan barcode or type a name (press Enter to add)..."
+                                autocomplete="off"
+                                autofocus
+                            >
+
+                            <select id="categoryFilter" class="field">
+                                <option value="">All Categories</option>
+
+                                {% for category in products|map(attribute='category')|select|unique|sort %}
+                                    <option value="{{ category }}">{{ category }}</option>
+                                {% endfor %}
+                            </select>
+
+                            <button type="button" id="cameraScanBtn" class="btn-scan" title="Scan barcodes with the camera">📷 Scan with camera</button>
+                        </div>
+
+                        <div id="scanMessage" class="scan-hint">
+                            Tip: use a barcode scanner (it types the code and presses Enter) or tap “Scan with camera”.
+                        </div>
+
+                        <div class="products-grid" id="productsContainer">
+
+                            {% for product in products %}
+                            <div
+                                class="product-item"
+                                data-name="{{ product.name|lower }}"
+                                data-barcode="{{ product.barcode or '' }}"
+                                data-category="{{ product.category or '' }}"
+                            >
+                                <div class="product-card">
+
+                                    <div class="card-top">
+                                        <h3>{{ product.name }}</h3>
+
+                                        {% if product.stock > 0 %}
+                                            <span class="stock-badge in">Stock: {{ product.stock }}</span>
+                                        {% else %}
+                                            <span class="stock-badge out">Out of Stock</span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if product.category %}
+                                        <div class="product-meta">{{ product.category }}</div>
+                                    {% endif %}
+
+                                    {% if product.barcode %}
+                                        <div class="product-meta num">Barcode: {{ product.barcode }}</div>
+                                    {% endif %}
+
+                                    <div class="product-price num">Rs. {{ "%.2f"|format(product.price) }}</div>
+
+                                    <button
+                                        type="button"
+                                        class="add-to-cart-btn"
+                                        data-id="{{ product.id }}"
+                                        data-name="{{ product.name }}"
+                                        data-price="{{ product.price }}"
+                                        data-stock="{{ product.stock }}"
+                                        {% if product.stock <= 0 %}disabled{% endif %}
+                                    >
+                                        {% if product.stock > 0 %}+ Add to Cart{% else %}Out of Stock{% endif %}
+                                    </button>
+
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="empty-note">
+                                No products available.
+                                <br><br>
+                                <a href="/" class="btn-ghost" style="display:inline-block;">Add Products</a>
+                            </div>
+                            {% endfor %}
+
+                        </div>
+
+                        <div id="noProducts" class="alert-inline warning" style="display:none; margin-top:14px; text-align:center;">
+                            No matching products found.
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- =========================================
+                     CART SECTION
+                ========================================== -->
+                <div class="panel cart-box">
+
+                    <div class="cart-head">
+                        <h2>🛒 Current Sale</h2>
+                        <button type="button" id="clearCartBtn" class="btn-clear">Clear</button>
+                    </div>
+
+                    <div class="panel-body">
+
+                        <div style="margin-bottom: 16px;">
+                            <label class="field-label" for="customerSelect">Customer</label>
+                            <select id="customerSelect" class="field">
+                                <option value="">Walk-in Customer</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}">
+                                    {{ customer.name }}{% if customer.phone %} - {{ customer.phone }}{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div id="cartContainer">
+                            <div id="emptyCart" class="empty-cart">
+                                <div class="ic">🛒</div>
+                                <p style="margin: 6px 0 2px 0;">Your cart is empty</p>
+                                <small>Add products to start a sale</small>
+                            </div>
+                        </div>
+
+                        <!-- DISCOUNT & TAX -->
+                        <div class="adjust-grid" style="margin-top: 16px;">
+                            <div>
+                                <label class="field-label" for="discountType">Discount type</label>
+                                <select id="discountType" class="field field-sm">
+                                    <option value="fixed">Fixed (Rs.)</option>
+                                    <option value="percent">Percent (%)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="field-label" for="discountValue">Discount</label>
+                                <input type="number" id="discountValue" class="field field-sm" min="0" step="0.01" placeholder="0">
+                            </div>
+                            <div class="span-2">
+                                <label class="field-label" for="taxRate">Tax / VAT (%)</label>
+                                <input type="number" id="taxRate" class="field field-sm" min="0" max="100" step="0.01" value="0" placeholder="0">
+                            </div>
+                        </div>
+
+                        <div class="total-box">
+                            <div class="total-row">
+                                <span>Items</span>
+                                <strong id="itemCount" class="num">0</strong>
+                            </div>
+                            <div class="total-row">
+                                <span>Subtotal</span>
+                                <strong id="subtotalAmount" class="num">Rs. 0.00</strong>
+                            </div>
+                            <div class="total-row discount-row">
+                                <span>Discount</span>
+                                <strong id="discountAmount" class="num">- Rs. 0.00</strong>
+                            </div>
+                            <div class="total-row">
+                                <span>Tax</span>
+                                <strong id="taxAmount" class="num">Rs. 0.00</strong>
+                            </div>
+                            <div class="total-row grand-row">
+                                <span class="grand">Total</span>
+                                <strong class="grand-val" id="cartTotal">Rs. 0.00</strong>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 16px;">
+                            <label class="field-label" for="paymentMethod">Payment Method</label>
+                            <select id="paymentMethod" class="field">
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                            </select>
+                        </div>
+
+                        <div style="margin-top: 14px;" id="cashSection">
+                            <label class="field-label" for="cashReceived">Cash Received</label>
+                            <input type="number" id="cashReceived" class="field" min="0" step="0.01" placeholder="Enter cash received">
+                        </div>
+
+                        <div class="change-box" id="changeBox" style="display:none;">
+                            <div class="total-row">
+                                <span>Change</span>
+                                <strong id="changeAmount" class="num">Rs. 0.00</strong>
+                            </div>
+                        </div>
+
+                        <button type="button" id="payNowBtn" class="pay-btn">💳 Pay Now</button>
+
+                        <div id="paymentMessage" style="margin-top: 12px;"></div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- =====================================================
+     CAMERA SCANNER POPUP
+===================================================== -->
+<div id="cameraModal" class="camera-modal" role="dialog" aria-modal="true" aria-labelledby="cameraTitle">
+    <div class="camera-card">
+        <div class="camera-head">
+            <strong id="cameraTitle">📷 Scan barcodes</strong>
+            <button type="button" id="cameraCloseBtn" class="btn-camera-done">Done</button>
+        </div>
+        <div id="cameraReader" class="camera-reader"></div>
+        <div id="cameraStatus" class="camera-status">Starting camera...</div>
+        <div id="cameraSummary" class="camera-summary"></div>
+        <div class="camera-foot">Hold a barcode inside the frame. Each scan is added to the cart automatically. Keep scanning, then tap Done. To add two of the same item, take the barcode out of view and show it again.</div>
+    </div>
+</div>
+
+
+<!-- =====================================================
+     THEME TOGGLE
+===================================================== -->
+<script>
+    const root = document.documentElement;
+    const themeToggle = document.getElementById('themeToggle');
+
+    function applyTheme(theme) {
+        root.setAttribute('data-theme', theme);
+        themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+
+    const savedTheme = localStorage.getItem('pos-theme') ||
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(savedTheme);
+
+    themeToggle.addEventListener('click', function () {
+        const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('pos-theme', next);
+        applyTheme(next);
+    });
+</script>
+
+
+<!-- =====================================================
+     POS LOGIC
+===================================================== -->
+<script>
+
+let cart = [];
+
+// Default tax rate shown when the page loads (percent). Change if your shop always charges tax.
+const DEFAULT_TAX_RATE = 0;
+
+const el = id => document.getElementById(id);
+
+function round2(value) {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function money(value) {
+    return "Rs. " + value.toFixed(2);
+}
+
+
+// =========================================================
+// ESCAPE HTML
+// =========================================================
+
+function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+
+// =========================================================
+// TOTALS (subtotal -> discount -> tax on discounted amount)
+// The server repeats this calculation and is the final authority.
+// =========================================================
+
+function getTotals() {
+
+    const subtotal = round2(
+        cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    );
+
+    const type = el("discountType").value;
+    const rawDiscount = Math.max(0, Number(el("discountValue").value) || 0);
+
+    let discount = type === "percent"
+        ? round2(subtotal * Math.min(rawDiscount, 100) / 100)
+        : round2(rawDiscount);
+
+    const discountTooBig = (type === "percent" && rawDiscount > 100) || discount > subtotal;
+
+    discount = Math.min(discount, subtotal);
+
+    const taxRate = Math.min(Math.max(Number(el("taxRate").value) || 0, 0), 100);
+    const taxable = round2(subtotal - discount);
+    const tax = round2(taxable * taxRate / 100);
+    const total = round2(taxable + tax);
+
+    return {
+        subtotal: subtotal,
+        discount: discount,
+        discountTooBig: discountTooBig,
+        tax: tax,
+        taxRate: taxRate,
+        total: total
+    };
+}
+
+
+// =========================================================
+// ADD TO CART
+// =========================================================
+
+function addToCart(id, name, price, stock) {
+
+    id = Number(id);
+    price = Number(price);
+    stock = Number(stock);
+
+    const existingItem = cart.find(item => item.id === id);
+
+    if (existingItem) {
+
+        if (existingItem.quantity >= stock) {
+            alert("You cannot add more than available stock.");
+            return false;
+        }
+
+        existingItem.quantity++;
+
+    } else {
+
+        cart.push({
+            id: id,
+            name: name,
+            price: price,
+            stock: stock,
+            quantity: 1
+        });
+
+    }
+
+    renderCart();
+    return true;
+}
+
+
+// =========================================================
+// RENDER CART
+// =========================================================
+
+function renderCart() {
+
+    const container = el("cartContainer");
+
+    if (cart.length === 0) {
+
+        container.innerHTML = `
+            <div id="emptyCart" class="empty-cart">
+                <div class="ic">🛒</div>
+                <p style="margin: 6px 0 2px 0;">Your cart is empty</p>
+                <small>Add products to start a sale</small>
+            </div>
+        `;
+
+        updateTotals();
+        return;
+    }
+
+    let html = "";
+
+    cart.forEach((item, index) => {
+
+        const subtotal = item.price * item.quantity;
+
+        html += `
+            <div class="cart-item">
+
+                <div style="display:flex; justify-content:space-between;">
+
+                    <div>
+                        <strong>${escapeHtml(item.name)}</strong>
+                        <div style="font-size:12px; color: var(--text-muted);">
+                            Rs. ${item.price.toFixed(2)} each
+                        </div>
+                    </div>
+
+                    <button type="button" class="remove-item" data-index="${index}">×</button>
+
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <button type="button" class="quantity-btn decrease-item" data-index="${index}">−</button>
+                        <span style="padding: 0 6px; font-weight:600;">${item.quantity}</span>
+                        <button type="button" class="quantity-btn increase-item" data-index="${index}">+</button>
+                    </div>
+
+                    <strong class="num">Rs. ${subtotal.toFixed(2)}</strong>
+
+                </div>
+
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+
+    updateTotals();
+}
+
+
+// =========================================================
+// UPDATE TOTALS
+// =========================================================
+
+function updateTotals() {
+
+    const t = getTotals();
+
+    const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+    el("itemCount").textContent = itemCount;
+    el("subtotalAmount").textContent = money(t.subtotal);
+    el("discountAmount").textContent = "- " + money(t.discount);
+    el("taxAmount").textContent = money(t.tax);
+    el("cartTotal").textContent = money(t.total);
+
+    calculateChange();
+}
+
+
+// =========================================================
+// CART BUTTONS (add / increase / decrease / remove)
+// =========================================================
+
+document.addEventListener("click", function (event) {
+
+    // ADD TO CART
+    const addButton = event.target.closest(".add-to-cart-btn");
+
+    if (addButton) {
+        addToCart(
+            addButton.dataset.id,
+            addButton.dataset.name,
+            addButton.dataset.price,
+            addButton.dataset.stock
+        );
+        return;
+    }
+
+    // INCREASE
+    const increaseButton = event.target.closest(".increase-item");
+
+    if (increaseButton) {
+
+        const index = Number(increaseButton.dataset.index);
+
+        if (cart[index].quantity < cart[index].stock) {
+            cart[index].quantity++;
+        } else {
+            alert("Maximum available stock reached.");
+        }
+
+        renderCart();
+        return;
+    }
+
+    // DECREASE
+    const decreaseButton = event.target.closest(".decrease-item");
+
+    if (decreaseButton) {
+
+        const index = Number(decreaseButton.dataset.index);
+
+        cart[index].quantity--;
+
+        if (cart[index].quantity <= 0) {
+            cart.splice(index, 1);
+        }
+
+        renderCart();
+        return;
+    }
+
+    // REMOVE
+    const removeButton = event.target.closest(".remove-item");
+
+    if (removeButton) {
+
+        const index = Number(removeButton.dataset.index);
+
+        cart.splice(index, 1);
+
+        renderCart();
+    }
+
+});
+
+
+// =========================================================
+// CLEAR CART
+// =========================================================
+
+el("clearCartBtn").addEventListener("click", function () {
+
+    if (cart.length === 0) {
+        return;
+    }
+
+    if (confirm("Are you sure you want to clear the cart?")) {
+
+        cart = [];
+
+        el("customerSelect").value = "";
+        el("discountValue").value = "";
+        el("discountType").value = "fixed";
+        el("taxRate").value = DEFAULT_TAX_RATE;
+        el("cashReceived").value = "";
+
+        renderCart();
+    }
+
+});
+
+
+// =========================================================
+// SEARCH / FILTER PRODUCT CARDS
+// =========================================================
+
+function filterProducts() {
+
+    const search = el("searchInput").value.toLowerCase().trim();
+    const category = el("categoryFilter").value.toLowerCase();
+
+    const products = document.querySelectorAll(".product-item");
+
+    let visibleCount = 0;
+
+    products.forEach(product => {
+
+        const name = product.dataset.name.toLowerCase();
+        const barcode = product.dataset.barcode.toLowerCase();
+        const productCategory = product.dataset.category.toLowerCase();
+
+        const matchesSearch = name.includes(search) || barcode.includes(search);
+        const matchesCategory = category === "" || productCategory === category;
+
+        if (matchesSearch && matchesCategory) {
+            product.style.display = "";
+            visibleCount++;
+        } else {
+            product.style.display = "none";
+        }
+
+    });
+
+    el("noProducts").style.display = visibleCount === 0 ? "block" : "none";
+}
+
+el("searchInput").addEventListener("input", filterProducts);
+el("categoryFilter").addEventListener("change", filterProducts);
+
+
+// =========================================================
+// BARCODE SCAN: scanner device / typing + Enter (uses /api/search_product)
+// =========================================================
+
+const DEFAULT_SCAN_HINT = "Tip: use a barcode scanner (it types the code and presses Enter) or tap “Scan with camera”.";
+
+let scanMessageTimer = null;
+
+function showScanMessage(text, kind) {
+
+    const box = el("scanMessage");
+
+    box.textContent = text;
+    box.className = "scan-hint" + (kind ? " " + kind : "");
+
+    clearTimeout(scanMessageTimer);
+
+    scanMessageTimer = setTimeout(function () {
+        box.textContent = DEFAULT_SCAN_HINT;
+        box.className = "scan-hint";
+    }, 4000);
+}
+
+
+// Looks a code up through /api/search_product and adds the product to the cart.
+//   exactOnly = true  (camera): only an exact barcode match is added.
+//   exactOnly = false (typing + Enter): a single name match is added too.
+// Returns { ok, kind, text } so the caller can show the result.
+async function addProductByCode(query, exactOnly) {
+
+    let results;
+
+    try {
+
+        const response = await fetch(
+            "/api/search_product?q=" + encodeURIComponent(query)
+        );
+
+        if (response.redirected) {
+            return { ok: false, kind: "error", text: "Your session expired. Please log in again." };
+        }
+
+        results = await response.json();
+
+    } catch (error) {
+
+        console.error(error);
+        return { ok: false, kind: "error", text: "Search failed. Check your connection and try again." };
+    }
+
+    if (!Array.isArray(results) || results.length === 0) {
+        return {
+            ok: false,
+            kind: "error",
+            text: exactOnly
+                ? "No product with barcode \"" + query + "\"."
+                : "No product found for \"" + query + "\"."
+        };
+    }
+
+    // An exact barcode match wins.
+    let product = results.find(p => p.barcode && p.barcode === query);
+
+    if (!product && !exactOnly && results.length === 1) {
+        product = results[0];
+    }
+
+    if (!product) {
+        return exactOnly
+            ? { ok: false, kind: "error", text: "No product with barcode \"" + query + "\"." }
+            : { ok: false, kind: "", text: results.length + " products match. Click the one you want below." };
+    }
+
+    if (product.stock <= 0) {
+        return { ok: false, kind: "error", text: product.name + " is out of stock." };
+    }
+
+    const inCart = cart.find(item => item.id === Number(product.id));
+
+    if (inCart && inCart.quantity >= product.stock) {
+        return { ok: false, kind: "error", text: "Not enough stock for " + product.name + " (" + product.stock + " available)." };
+    }
+
+    addToCart(product.id, product.name, product.price, product.stock);
+
+    const line = cart.find(item => item.id === Number(product.id));
+
+    return { ok: true, kind: "ok", text: "Added: " + product.name + " (x" + line.quantity + ")" };
+}
+
+
+el("searchInput").addEventListener("keydown", async function (event) {
+
+    if (event.key !== "Enter") {
+        return;
+    }
+
+    event.preventDefault();
+
+    const query = this.value.trim();
+
+    if (!query) {
+        return;
+    }
+
+    const result = await addProductByCode(query, false);
+
+    showScanMessage(result.text, result.kind);
+
+    if (result.ok) {
+        this.value = "";
+        filterProducts();
+    }
+
+    this.focus();
+});
+
+
+// =========================================================
+// CAMERA SCANNING (html5-qrcode library, loaded when first needed)
+// It looks for /static/html5-qrcode.min.js first (works offline),
+// then falls back to the CDN.
+// =========================================================
+
+const SCANNER_LOCAL_URL = "/static/html5-qrcode.min.js";
+const SCANNER_CDN_URL = "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js";
+
+let scannerLibraryPromise = null;
+let cameraScanner = null;
+let cameraOpen = false;
+let cameraBusy = false;
+let lastCode = "";
+let lastSeenAt = 0;
+let audioCtx = null;
+
+
+function loadScript(url) {
+
+    return new Promise(function (resolve, reject) {
+
+        const tag = document.createElement("script");
+
+        tag.src = url;
+        tag.onload = resolve;
+        tag.onerror = function () {
+            tag.remove();
+            reject(new Error("Could not load " + url));
+        };
+
+        document.head.appendChild(tag);
+    });
+}
+
+
+function loadScannerLibrary() {
+
+    if (window.Html5Qrcode) {
+        return Promise.resolve();
+    }
+
+    if (!scannerLibraryPromise) {
+
+        scannerLibraryPromise = loadScript(SCANNER_LOCAL_URL)
+            .catch(function () { return loadScript(SCANNER_CDN_URL); })
+            .then(function () {
+                if (!window.Html5Qrcode) {
+                    throw new Error("Scanner library missing");
+                }
+            })
+            .catch(function (error) {
+                scannerLibraryPromise = null;
+                throw error;
+            });
+    }
+
+    return scannerLibraryPromise;
+}
+
+
+function setCameraStatus(text, kind) {
+
+    const box = el("cameraStatus");
+
+    box.textContent = text;
+    box.className = "camera-status" + (kind ? " " + kind : "");
+}
+
+
+function updateCameraSummary() {
+
+    const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+    el("cameraSummary").textContent =
+        "Cart: " + count + " item" + (count === 1 ? "" : "s") + " · " + money(getTotals().total);
+}
+
+
+function beep() {
+
+    try {
+
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = "square";
+        osc.frequency.value = 880;
+        gain.gain.value = 0.08;
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+
+    } catch (error) { /* sound is optional */ }
+
+    if (navigator.vibrate) {
+        navigator.vibrate(60);
+    }
+}
+
+
+function cameraErrorText(error) {
+
+    const text = String(error && error.name ? error.name + " " : "") + String(error && error.message ? error.message : error);
+
+    if (/NotAllowed|Permission|denied/i.test(text)) {
+        return "Camera permission was blocked. Allow camera access for this site in your browser settings, then tap Scan with camera again.";
+    }
+
+    if (/NotFound|Requested device not found|no camera/i.test(text)) {
+        return "No camera was found on this device.";
+    }
+
+    if (/NotReadable|in use|Could not start video/i.test(text)) {
+        return "The camera is being used by another app. Close it and try again.";
+    }
+
+    return "Could not start the camera: " + text;
+}
+
+
+async function onCameraCode(decodedText) {
+
+    const code = String(decodedText || "").trim();
+
+    if (!code || !cameraOpen) {
+        return;
+    }
+
+    const now = Date.now();
+
+    // The same barcode is still in front of the camera: ignore it, but remember it is still there.
+    if (code === lastCode && now - lastSeenAt < 1500) {
+        lastSeenAt = now;
+        return;
+    }
+
+    if (cameraBusy) {
+        return;
+    }
+
+    cameraBusy = true;
+    lastCode = code;
+    lastSeenAt = now;
+
+    try {
+
+        const result = await addProductByCode(code, true);
+
+        setCameraStatus(result.text, result.ok ? "ok" : "error");
+        showScanMessage(result.text, result.kind);
+        updateCameraSummary();
+
+        if (result.ok) {
+            beep();
+        } else if (navigator.vibrate) {
+            navigator.vibrate([80, 60, 80]);
+        }
+
+    } finally {
+
+        cameraBusy = false;
+        lastSeenAt = Date.now();
+    }
+}
+
+
+async function openCamera() {
+
+    if (cameraOpen) {
+        return;
+    }
+
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showScanMessage("The camera only works on https:// or on localhost. Open the app at http://localhost:5000 on this computer, or start it with HTTPS=1 to use it from a phone.", "error");
+        return;
+    }
+
+    cameraOpen = true;
+    lastCode = "";
+    lastSeenAt = 0;
+
+    el("cameraModal").classList.add("open");
+    setCameraStatus("Starting camera...", "");
+    updateCameraSummary();
+
+    // Created inside the click so the browser allows the beep later.
+    try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        audioCtx.resume();
+    } catch (error) { /* sound is optional */ }
+
+    try {
+        await loadScannerLibrary();
+    } catch (error) {
+        console.error(error);
+        setCameraStatus("Could not load the scanner. Check your internet connection, or save html5-qrcode.min.js into the static folder to work offline.", "error");
+        return;
+    }
+
+    if (!cameraOpen) {
+        return;
+    }
+
+    const F = Html5QrcodeSupportedFormats;
+
+    const scanner = new Html5Qrcode("cameraReader", {
+        formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.ITF, F.QR_CODE],
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+        verbose: false
+    });
+
+    cameraScanner = scanner;
+
+    try {
+
+        await scanner.start(
+            { facingMode: "environment" },
+            {
+                fps: 10,
+                // wide box, because most product barcodes are wide and short
+                qrbox: function (viewWidth, viewHeight) {
+                    const width = Math.floor(Math.min(viewWidth * 0.9, 420));
+                    return { width: width, height: Math.floor(Math.min(width * 0.5, viewHeight * 0.9)) };
+                }
+            },
+            onCameraCode,
+            function () { /* no barcode in this frame */ }
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        if (cameraScanner === scanner) {
+            cameraScanner = null;
+        }
+
+        setCameraStatus(cameraErrorText(error), "error");
+        return;
+    }
+
+    // Done was pressed while the camera was still starting.
+    if (!cameraOpen || cameraScanner !== scanner) {
+
+        try {
+            await scanner.stop();
+            scanner.clear();
+        } catch (error) { /* already stopped */ }
+
+        return;
+    }
+
+    setCameraStatus("Point the camera at a barcode.", "");
+}
+
+
+async function closeCamera() {
+
+    if (!cameraOpen) {
+        return;
+    }
+
+    cameraOpen = false;
+    el("cameraModal").classList.remove("open");
+
+    const scanner = cameraScanner;
+
+    cameraScanner = null;
+    lastCode = "";
+    lastSeenAt = 0;
+
+    if (scanner) {
+
+        try {
+            await scanner.stop();
+        } catch (error) { /* not running */ }
+
+        try {
+            scanner.clear();
+        } catch (error) { /* nothing to clear */ }
+    }
+
+    el("searchInput").focus();
+}
+
+
+el("cameraScanBtn").addEventListener("click", openCamera);
+el("cameraCloseBtn").addEventListener("click", closeCamera);
+
+document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && cameraOpen) {
+        closeCamera();
+    }
+});
+
+window.addEventListener("pagehide", function () {
+    if (cameraScanner) {
+        try { cameraScanner.stop(); } catch (error) { /* leaving the page */ }
+    }
+});
+
+
+// =========================================================
+// PAYMENT METHOD
+// =========================================================
+
+el("paymentMethod").addEventListener("change", function () {
+
+    const cashSection = el("cashSection");
+
+    if (this.value === "Cash") {
+
+        cashSection.style.display = "block";
+
+    } else {
+
+        cashSection.style.display = "none";
+
+        el("cashReceived").value = "";
+        el("changeBox").style.display = "none";
+    }
+
+});
+
+
+// =========================================================
+// CALCULATE CHANGE
+// =========================================================
+
+function calculateChange() {
+
+    if (el("paymentMethod").value !== "Cash") {
+        el("changeBox").style.display = "none";
+        return;
+    }
+
+    const cash = Number(el("cashReceived").value) || 0;
+    const total = getTotals().total;
+    const change = round2(cash - total);
+
+    if (cash > 0 && total > 0 && change >= 0) {
+
+        el("changeAmount").textContent = money(change);
+        el("changeBox").style.display = "block";
+
+    } else {
+
+        el("changeBox").style.display = "none";
+    }
+
+}
+
+el("cashReceived").addEventListener("input", calculateChange);
+
+el("discountType").addEventListener("change", updateTotals);
+el("discountValue").addEventListener("input", updateTotals);
+el("taxRate").addEventListener("input", updateTotals);
+
+
+// =========================================================
+// PAY NOW
+// =========================================================
+
+el("payNowBtn").addEventListener("click", processPayment);
+
+function showPaymentMessage(text, kind) {
+    el("paymentMessage").innerHTML =
+        '<div class="alert-inline ' + kind + '">' + escapeHtml(text) + '</div>';
+}
+
+async function processPayment() {
+
+    const message = el("paymentMessage");
+    const payButton = el("payNowBtn");
+
+    if (cart.length === 0) {
+        showPaymentMessage("Please add at least one product to the cart.", "warning");
+        return;
+    }
+
+    const totals = getTotals();
+
+    if (totals.discountTooBig) {
+        showPaymentMessage("Discount cannot be more than the subtotal (or above 100%).", "danger");
+        return;
+    }
+
+    if (totals.total <= 0) {
+        showPaymentMessage("The total must be greater than zero.", "danger");
+        return;
+    }
+
+    const paymentMethod = el("paymentMethod").value;
+    const cashReceived = Number(el("cashReceived").value) || 0;
+
+    if (paymentMethod === "Cash" && cashReceived < totals.total) {
+        showPaymentMessage("Cash received is less than the total amount.", "danger");
+        return;
+    }
+
+    // Only ids and quantities matter to the server; it prices everything itself.
+    const cartData = cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity
+    }));
+
+    payButton.disabled = true;
+    payButton.innerHTML = "Processing...";
+    message.innerHTML = "";
+
+    try {
+
+        const response = await fetch("/process_payment", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content
+            },
+
+            body: JSON.stringify({
+                cart: cartData,
+                payment_method: paymentMethod,
+                cash_received: cashReceived,
+                customer_id: el("customerSelect").value,
+                discount_type: el("discountType").value,
+                discount_value: Number(el("discountValue").value) || 0,
+                tax_rate: totals.taxRate
+            })
+
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            window.location.href = "/invoice/" + result.sale_id;
+            return;
+        }
+
+        showPaymentMessage(result.message || "Payment failed.", "danger");
+
+    } catch (error) {
+
+        console.error(error);
+        showPaymentMessage("Something went wrong while processing payment.", "danger");
+
+    }
+
+    payButton.disabled = false;
+    payButton.innerHTML = "💳 Pay Now";
+}
+
+
+// =========================================================
+// INITIALIZE
+// =========================================================
+
+el("taxRate").value = DEFAULT_TAX_RATE;
+renderCart();
+
+</script>
+
+
+</body>
+
+</html>
